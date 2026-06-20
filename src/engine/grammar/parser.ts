@@ -26,7 +26,11 @@ function isTerminal(symbol: string): boolean {
   return /^[a-z0-9+\-*/^(),.;:!@#%&=<>?[\]{}|~]$/.test(symbol);
 }
 
-function parseRightSide(rightStr: string, lineNum: number): { symbols: GrammarSymbol[]; error: string | null } {
+function parseRightSide(
+  rightStr: string,
+  lineNum: number,
+  knownNonTerminals: Set<string>
+): { symbols: GrammarSymbol[]; error: string | null } {
   const symbols: GrammarSymbol[] = [];
   let i = 0;
 
@@ -37,6 +41,8 @@ function parseRightSide(rightStr: string, lineNum: number): { symbols: GrammarSy
     };
   }
 
+  const sortedNTs = Array.from(knownNonTerminals).sort((a, b) => b.length - a.length);
+
   while (i < rightStr.length) {
     const ch = rightStr[i];
 
@@ -46,16 +52,25 @@ function parseRightSide(rightStr: string, lineNum: number): { symbols: GrammarSy
     }
 
     if (/[A-Z]/.test(ch)) {
-      let j = i + 1;
-      while (j < rightStr.length && /[A-Za-z0-9_]/.test(rightStr[j])) {
-        j++;
+      let matched: string | null = null;
+      for (const nt of sortedNTs) {
+        if (rightStr.startsWith(nt, i)) {
+          matched = nt;
+          break;
+        }
       }
-      const symbol = rightStr.slice(i, j);
-      if (!isNonTerminal(symbol)) {
-        return { symbols: [], error: `无效的非终结符 '${symbol}'` };
+      if (matched) {
+        symbols.push({ value: matched, isTerminal: false });
+        i += matched.length;
+      } else {
+        const single = rightStr[i];
+        if (isNonTerminal(single)) {
+          symbols.push({ value: single, isTerminal: false });
+          i += 1;
+        } else {
+          return { symbols: [], error: `无法识别的符号 '${single}'` };
+        }
       }
-      symbols.push({ value: symbol, isTerminal: false });
-      i = j;
     } else if (isTerminal(ch)) {
       const value = ch === EPSILON_INPUT ? EPSILON : ch;
       symbols.push({ value, isTerminal: true });
@@ -89,6 +104,12 @@ function parseRightSide(rightStr: string, lineNum: number): { symbols: GrammarSy
   return { symbols, error: null };
 }
 
+interface RawLine {
+  lineNum: number;
+  left: string;
+  rightPart: string;
+}
+
 export function parseGrammar(input: string, startSymbolOverride?: string): ParsedGrammar {
   resetProductionIdCounter();
   const productions: Production[] = [];
@@ -98,7 +119,9 @@ export function parseGrammar(input: string, startSymbolOverride?: string): Parse
 
   const lines = input.split('\n');
   let firstNonTerminal: string | null = null;
+  const rawLines: RawLine[] = [];
 
+  // 第一遍:解析左侧,收集所有已声明的非终结符
   lines.forEach((line, index) => {
     const lineNum = index + 1;
     const trimmed = line.trim();
@@ -131,11 +154,16 @@ export function parseGrammar(input: string, startSymbolOverride?: string): Parse
       firstNonTerminal = left;
     }
     nonTerminalSet.add(left);
+    rawLines.push({ lineNum, left, rightPart });
+  });
 
+  // 第二遍:基于已收集的非终结符,解析右侧产生式
+  for (const raw of rawLines) {
+    const { lineNum, left, rightPart } = raw;
     const alternatives = rightPart.split('|').map((a) => a.trim());
 
     for (const alt of alternatives) {
-      const { symbols, error } = parseRightSide(alt, lineNum);
+      const { symbols, error } = parseRightSide(alt, lineNum, nonTerminalSet);
       if (error) {
         errors.push({ line: lineNum, message: error });
         continue;
@@ -157,7 +185,7 @@ export function parseGrammar(input: string, startSymbolOverride?: string): Parse
         originalText: `${left}->${alt || EPSILON}`,
       });
     }
-  });
+  }
 
   const nonTerminals = Array.from(nonTerminalSet).sort();
   const terminals = Array.from(terminalSet).sort();
