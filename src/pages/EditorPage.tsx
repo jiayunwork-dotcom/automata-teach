@@ -9,9 +9,11 @@ import { RegexDialog } from '../components/dialogs/RegexDialog';
 import { OperationsDialog } from '../components/dialogs/OperationsDialog';
 import { LevelsDialog } from '../components/dialogs/LevelsDialog';
 import { BatchTestDialog } from '../components/dialogs/BatchTestDialog';
+import { GrammarPanel } from '../components/grammar/GrammarPanel';
 import { useExecutionStore } from '../stores/executionStore';
 import { useAutomatonStore } from '../stores/automatonStore';
 import { useEditorStore } from '../stores/editorStore';
+import { useUIStore } from '../stores/uiStore';
 import { checkAccept } from '../engine/execution';
 import { getStateById } from '../engine/utils';
 import { STATE_RADIUS } from '../engine/types';
@@ -180,6 +182,7 @@ export function EditorPage() {
       <OperationsDialog />
       <LevelsDialog />
       <BatchTestDialog />
+      <GrammarPanel />
     </div>
   );
 }

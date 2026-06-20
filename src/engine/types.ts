@@ -41,7 +41,7 @@ export interface ExecutionBranch {
   depth: number;
 }
 
-export type EditorMode = 'edit' | 'test' | 'convert';
+export type EditorMode = 'edit' | 'test' | 'convert' | 'grammar';
 
 export type ExecutionMode = 'DFA' | 'NFA';
 

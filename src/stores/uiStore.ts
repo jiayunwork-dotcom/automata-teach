@@ -4,6 +4,7 @@ interface UIState {
   rightPanelOpen: boolean;
   rightPanelTab: 'transitionTable' | 'executionTree' | 'info';
   leftPanelOpen: boolean;
+  grammarPanelOpen: boolean;
   showSaveDialog: boolean;
   showImportDialog: boolean;
   showExportDialog: boolean;
@@ -15,6 +16,8 @@ interface UIState {
   toggleRightPanel: () => void;
   setRightPanelTab: (tab: 'transitionTable' | 'executionTree' | 'info') => void;
   toggleLeftPanel: () => void;
+  toggleGrammarPanel: () => void;
+  setGrammarPanelOpen: (open: boolean) => void;
 
   setShowSaveDialog: (show: boolean) => void;
   setShowImportDialog: (show: boolean) => void;
@@ -40,6 +43,7 @@ export const useUIStore = create<UIState>((set) => ({
   rightPanelOpen: true,
   rightPanelTab: 'transitionTable',
   leftPanelOpen: true,
+  grammarPanelOpen: false,
   showSaveDialog: false,
   showImportDialog: false,
   showExportDialog: false,
@@ -53,6 +57,9 @@ export const useUIStore = create<UIState>((set) => ({
   setRightPanelTab: (tab) => set({ rightPanelTab: tab, rightPanelOpen: true }),
   toggleLeftPanel: () =>
     set((state) => ({ leftPanelOpen: !state.leftPanelOpen })),
+  toggleGrammarPanel: () =>
+    set((state) => ({ grammarPanelOpen: !state.grammarPanelOpen })),
+  setGrammarPanelOpen: (open) => set({ grammarPanelOpen: open }),
 
   setShowSaveDialog: (show) => set({ showSaveDialog: show }),
   setShowImportDialog: (show) => set({ showImportDialog: show }),

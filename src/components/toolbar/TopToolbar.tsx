@@ -18,6 +18,7 @@ import {
   Trash2,
   Gauge,
   ListChecks,
+  GitBranch,
 } from 'lucide-react';
 import { useEditorStore } from '../../stores/editorStore';
 import { useExecutionStore } from '../../stores/executionStore';
@@ -61,6 +62,8 @@ export function TopToolbar() {
   const setShowLevelsDialog = useUIStore((s) => s.setShowLevelsDialog);
   const setShowOperationsDialog = useUIStore((s) => s.setShowOperationsDialog);
   const setShowBatchTestDialog = useUIStore((s) => s.setShowBatchTestDialog);
+  const grammarPanelOpen = useUIStore((s) => s.grammarPanelOpen);
+  const setGrammarPanelOpen = useUIStore((s) => s.setGrammarPanelOpen);
   const setSubsetConstructionActive = useUIStore(
     (s) => s.setSubsetConstructionActive
   );
@@ -116,6 +119,10 @@ export function TopToolbar() {
     { value: 'test', label: '测试' },
     { value: 'convert', label: '转换' },
   ];
+
+  const toggleGrammarPanel = () => {
+    setGrammarPanelOpen(!grammarPanelOpen);
+  };
 
   return (
     <div className="h-14 bg-slate-800 border-b border-slate-700 flex items-center px-4 gap-4 text-slate-200">
@@ -298,6 +305,19 @@ export function TopToolbar() {
       )}
 
       <div className="flex-1" />
+
+      <button
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm transition-colors ${
+          grammarPanelOpen
+            ? 'bg-violet-600 hover:bg-violet-700'
+            : 'hover:bg-slate-700'
+        }`}
+        onClick={toggleGrammarPanel}
+        title="语法分析可视化"
+      >
+        <GitBranch className="w-4 h-4" />
+        语法分析
+      </button>
 
       <button
         className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-700 rounded text-sm transition-colors"
