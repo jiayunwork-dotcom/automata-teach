@@ -58,10 +58,13 @@ export interface LL1AnalysisStep {
   stack: GrammarSymbol[];
   remainingInput: string;
   appliedProduction: Production | null;
-  action: 'match' | 'expand' | 'accept' | 'error' | 'start';
+  action: 'match' | 'expand' | 'accept' | 'error' | 'start' | 'recover';
   matchedChar: string | null;
   errorMessage: string | null;
   description: string;
+  skippedSymbols?: string[];
+  isRecoveryPoint?: boolean;
+  recoveryCount?: number;
 }
 
 export interface PDAState {

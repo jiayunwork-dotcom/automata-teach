@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react';
-import { Play, Pause, SkipBack, SkipForward, StepBack, StepForward, PlayCircle } from 'lucide-react';
+import { useEffect, useRef, useMemo } from 'react';
+import { Play, Pause, SkipBack, SkipForward, StepBack, StepForward, PlayCircle, Download } from 'lucide-react';
 import { useGrammarStore } from '../../stores/grammarStore';
+import { useUIStore } from '../../stores/uiStore';
 import { productionToString } from '../../engine/grammar/parser';
 import type { LL1AnalysisStep, GrammarSymbol } from '../../engine/grammar/types';
-import { END_MARKER } from '../../engine/grammar/types';
+import { EPSILON, END_MARKER } from '../../engine/grammar/types';
 
 export function LL1AnalysisPanel() {
   const parsedGrammar = useGrammarStore((s) => s.parsedGrammar);
@@ -17,6 +18,7 @@ export function LL1AnalysisPanel() {
   const setLL1Step = useGrammarStore((s) => s.setLL1Step);
   const setLL1Playing = useGrammarStore((s) => s.setLL1Playing);
   const setLL1Speed = useGrammarStore((s) => s.setLL1Speed);
+  const showToast = useUIStore((s) => s.showToast);
 
   const animationRef = useRef<number>();
 
@@ -73,24 +75,88 @@ export function LL1AnalysisPanel() {
     setLL1Playing(!ll1IsPlaying);
   };
 
-  const renderSymbol = (sym: GrammarSymbol, isStackTop: boolean, isError: boolean) => (
-    <span
-      key={`${sym.value}-${isStackTop}`}
-      className={`inline-flex items-center justify-center px-2 py-1 mx-0.5 rounded font-mono text-sm transition-all ${
-        isStackTop
-          ? isError
-            ? 'bg-red-600 text-white ring-2 ring-red-400 scale-110'
-            : 'bg-cyan-600 text-white ring-2 ring-cyan-400 scale-110'
-          : sym.isTerminal
-          ? 'bg-amber-900/50 text-amber-300 border border-amber-700'
-          : 'bg-slate-700 text-slate-200 border border-slate-600'
-      }`}
-    >
-      {sym.value}
-    </span>
-  );
+  const tokenizeInput = useMemo(() => {
+    const sortedTerminals = [...parsedGrammar.terminals].sort((a, b) => b.length - a.length);
+    return (input: string): string[] => {
+      const tokens: string[] = [];
+      let i = 0;
+      while (i < input.length) {
+        let matched = false;
+        for (const t of sortedTerminals) {
+          if (input.startsWith(t, i) && t !== END_MARKER) {
+            tokens.push(t);
+            i += t.length;
+            matched = true;
+            break;
+          }
+        }
+        if (!matched) {
+          tokens.push(input[i]);
+          i++;
+        }
+      }
+      if (tokens[tokens.length - 1] !== END_MARKER) {
+        tokens.push(END_MARKER);
+      }
+      return tokens;
+    };
+  }, [parsedGrammar.terminals]);
 
-  const renderStack = (stack: GrammarSymbol[], isError: boolean) => {
+  const skippedSymbolsBefore = useMemo(() => {
+    const skipped: string[] = [];
+    for (let i = 0; i <= ll1CurrentStep && i < ll1Steps.length; i++) {
+      const step = ll1Steps[i];
+      if (step.skippedSymbols) {
+        skipped.push(...step.skippedSymbols);
+      }
+    }
+    return new Set(skipped);
+  }, [ll1Steps, ll1CurrentStep]);
+
+  const handleExport = () => {
+    if (ll1Steps.length === 0) {
+      showToast('没有可导出的步骤', 'error');
+      return;
+    }
+
+    const lines: string[] = [];
+    lines.push('LL(1) 分析过程');
+    lines.push('='.repeat(70));
+    lines.push('');
+    lines.push(`输入字符串: ${ll1Input || 'ε'}`);
+    lines.push('');
+    lines.push('文法:');
+    parsedGrammar.productions.forEach((p, i) => {
+      const rightStr = p.right.map(s => {
+        if (s.value === EPSILON) return 'ε';
+        if (s.isTerminal && s.value.length > 1) return `'${s.value}'`;
+        return s.value;
+      }).join('');
+      lines.push(`  ${i + 1}. ${p.left} -> ${rightStr || 'ε'}`);
+    });
+    lines.push('');
+    lines.push('-'.repeat(70));
+    lines.push(`${'步骤'.padEnd(6)}${'动作'.padEnd(40)}${'栈'.padEnd(20)}${'剩余输入'}`);
+    lines.push('-'.repeat(70));
+
+    for (const step of ll1Steps) {
+      const stepNum = String(step.stepIndex + 1).padEnd(6);
+      const action = step.description.padEnd(40);
+      const stackStr = step.stack.map(s => s.value).reverse().join('').padEnd(20);
+      const inputStr = step.remainingInput;
+
+      lines.push(`${stepNum}${action}${stackStr}${inputStr}`);
+    }
+
+    const text = lines.join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('已复制到剪贴板', 'success');
+    }).catch(() => {
+      showToast('复制失败', 'error');
+    });
+  };
+
+  const renderStack = (stack: GrammarSymbol[], isError: boolean, isRecoveryPoint: boolean) => {
     const reversed = [...stack].reverse();
     return (
       <div className="flex flex-col-reverse items-center gap-1 py-2">
@@ -101,6 +167,8 @@ export function LL1AnalysisPanel() {
               i === 0
                 ? isError
                   ? 'bg-red-600 text-white border-red-400 ring-2 ring-red-300'
+                  : isRecoveryPoint
+                  ? 'bg-yellow-600 text-white border-yellow-400 ring-2 ring-yellow-300'
                   : 'bg-cyan-600 text-white border-cyan-400 ring-2 ring-cyan-300'
                 : sym.isTerminal
                 ? 'bg-amber-900/40 text-amber-300 border-amber-700'
@@ -118,6 +186,8 @@ export function LL1AnalysisPanel() {
 
   const isError = currentStep?.action === 'error';
   const isAccept = currentStep?.action === 'accept';
+  const isRecover = currentStep?.action === 'recover';
+  const isRecoveryPoint = currentStep?.isRecoveryPoint;
 
   return (
     <div className="h-full flex flex-col bg-slate-900">
@@ -146,7 +216,7 @@ export function LL1AnalysisPanel() {
             <div className="h-2 bg-slate-700 rounded-full overflow-hidden mb-2">
               <div
                 className={`h-full transition-all duration-200 ${
-                  isError ? 'bg-red-500' : isAccept ? 'bg-green-500' : 'bg-cyan-500'
+                  isError ? 'bg-red-500' : isAccept ? 'bg-green-500' : isRecover ? 'bg-yellow-500' : 'bg-cyan-500'
                 }`}
                 style={{
                   width: `${((ll1CurrentStep + 1) / ll1Steps.length) * 100}%`,
@@ -161,6 +231,8 @@ export function LL1AnalysisPanel() {
                     ? 'text-red-400 font-semibold'
                     : isAccept
                     ? 'text-green-400 font-semibold'
+                    : isRecover
+                    ? 'text-yellow-400 font-semibold'
                     : ''
                 }
               >
@@ -177,6 +249,14 @@ export function LL1AnalysisPanel() {
             />
 
             <div className="flex items-center justify-center gap-1 mt-3">
+              <button
+                onClick={handleExport}
+                disabled={ll1Steps.length === 0}
+                className="p-2 hover:bg-slate-700 rounded transition-colors disabled:opacity-40"
+                title="导出步骤到剪贴板"
+              >
+                <Download className="w-4 h-4 text-slate-300" />
+              </button>
               <button
                 onClick={() => setLL1Step(0)}
                 className="p-2 hover:bg-slate-700 rounded transition-colors"
@@ -199,6 +279,8 @@ export function LL1AnalysisPanel() {
                     ? 'bg-red-600 hover:bg-red-700'
                     : isAccept
                     ? 'bg-green-600 hover:bg-green-700'
+                    : isRecover
+                    ? 'bg-yellow-600 hover:bg-yellow-700'
                     : 'bg-cyan-600 hover:bg-cyan-700'
                 }`}
                 title={ll1IsPlaying ? '暂停' : '播放'}
@@ -251,43 +333,56 @@ export function LL1AnalysisPanel() {
           <div className="flex-1 flex flex-col items-center p-4 border-r border-slate-700">
             <h4 className="text-sm font-medium text-slate-400 mb-2">分析栈 (栈顶在上)</h4>
             <div className="flex-1 flex items-end">
-              {currentStep && renderStack(currentStep.stack, isError)}
+              {currentStep && renderStack(currentStep.stack, isError, isRecoveryPoint)}
             </div>
           </div>
 
           <div className="flex-1 flex flex-col items-center p-4 border-r border-slate-700">
             <h4 className="text-sm font-medium text-slate-400 mb-2">剩余输入串</h4>
             <div className="flex-1 flex items-center">
-              {currentStep && (
-                <div className="font-mono text-xl flex items-center">
-                  {currentStep.remainingInput.split('').map((ch, i) => {
-                    const isCurrent = i === 0 && ch !== END_MARKER;
-                    const isEnd = ch === END_MARKER;
-                    return (
-                      <span
-                        key={i}
-                        className={`inline-flex items-center justify-center w-8 h-10 mx-0.5 rounded transition-all ${
-                          isCurrent
-                            ? isError
-                              ? 'bg-red-600 text-white ring-2 ring-red-400 scale-110'
-                              : currentStep.action === 'match'
-                              ? 'bg-green-600 text-white ring-2 ring-green-400'
-                              : 'bg-cyan-600 text-white ring-2 ring-cyan-400 scale-110'
-                            : isEnd
-                            ? 'bg-slate-700 text-slate-400 border border-slate-600 italic'
-                            : 'bg-amber-900/40 text-amber-300 border border-amber-700'
-                        }`}
-                      >
-                        {ch}
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
+              {currentStep && (() => {
+                const tokens = tokenizeInput(currentStep.remainingInput.replace(END_MARKER, ''));
+                return (
+                  <div className="font-mono text-xl flex items-center">
+                    {tokens.map((token, i) => {
+                      const isCurrent = i === 0 && token !== END_MARKER;
+                      const isEnd = token === END_MARKER;
+                      const isSkipped = skippedSymbolsBefore.has(token) && i > 0;
+                      return (
+                        <span
+                          key={i}
+                          className={`inline-flex items-center justify-center px-2 h-10 mx-0.5 rounded transition-all min-w-8 ${
+                            isCurrent
+                              ? isError
+                                ? 'bg-red-600 text-white ring-2 ring-red-400 scale-110'
+                                : isRecoveryPoint
+                                ? 'bg-yellow-600 text-white ring-2 ring-yellow-400 scale-110'
+                                : currentStep.action === 'match'
+                                ? 'bg-green-600 text-white ring-2 ring-green-400'
+                                : 'bg-cyan-600 text-white ring-2 ring-cyan-400 scale-110'
+                              : isEnd
+                              ? 'bg-slate-700 text-slate-400 border border-slate-600 italic'
+                              : isSkipped
+                              ? 'bg-slate-800 text-slate-500 border border-slate-600 line-through'
+                              : 'bg-amber-900/40 text-amber-300 border border-amber-700'
+                          }`}
+                        >
+                          {token}
+                        </span>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
             {currentStep?.matchedChar && currentStep.action === 'match' && (
               <div className="text-xs text-green-400 mt-2 flex items-center gap-1">
                 ✓ 匹配成功: <span className="font-mono">{currentStep.matchedChar}</span>
+              </div>
+            )}
+            {currentStep?.skippedSymbols && currentStep.skippedSymbols.length > 0 && (
+              <div className="text-xs text-yellow-400 mt-2 flex items-center gap-1">
+                ⚠ 错误恢复: 跳过符号 <span className="font-mono line-through">{currentStep.skippedSymbols.join(', ')}</span>
               </div>
             )}
           </div>

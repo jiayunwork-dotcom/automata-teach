@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { Play, Pause, SkipBack, SkipForward, StepBack, StepForward, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, StepBack, StepForward, RefreshCw, AlertTriangle, Download } from 'lucide-react';
 import { useGrammarStore } from '../../stores/grammarStore';
+import { useUIStore } from '../../stores/uiStore';
 import type { FirstFollowStep } from '../../engine/grammar/types';
+import { EPSILON } from '../../engine/grammar/types';
 
 export function FirstFollowPanel() {
   const parsedGrammar = useGrammarStore((s) => s.parsedGrammar);
@@ -13,6 +15,7 @@ export function FirstFollowPanel() {
   const setFFStep = useGrammarStore((s) => s.setFFStep);
   const setFFPlaying = useGrammarStore((s) => s.setFFPlaying);
   const setFFSpeed = useGrammarStore((s) => s.setFFSpeed);
+  const showToast = useUIStore((s) => s.showToast);
 
   const animationRef = useRef<number>();
 
@@ -71,6 +74,55 @@ export function FirstFollowPanel() {
     buildFirstFollow();
   };
 
+  const handleExport = () => {
+    if (firstFollowSteps.length === 0) {
+      showToast('没有可导出的步骤', 'error');
+      return;
+    }
+
+    const lines: string[] = [];
+    lines.push('First/Follow 集计算过程');
+    lines.push('='.repeat(60));
+    lines.push('');
+    lines.push('文法:');
+    parsedGrammar.productions.forEach((p, i) => {
+      const rightStr = p.right.map(s => {
+        if (s.value === EPSILON) return 'ε';
+        if (s.isTerminal && s.value.length > 1) return `'${s.value}'`;
+        return s.value;
+      }).join('');
+      lines.push(`  ${i + 1}. ${p.left} -> ${rightStr || 'ε'}`);
+    });
+    lines.push('');
+    lines.push('-'.repeat(60));
+    lines.push(`${'步骤'.padEnd(6)}${'动作'.padEnd(30)}${'当前状态'}`);
+    lines.push('-'.repeat(60));
+
+    for (const step of firstFollowSteps) {
+      const stepNum = String(step.stepIndex + 1).padEnd(6);
+      const action = step.description.padEnd(30);
+
+      const stateParts: string[] = [];
+      for (const nt of parsedGrammar.nonTerminals) {
+        const first = step.firstSets.get(nt) || new Set();
+        const follow = step.followSets.get(nt) || new Set();
+        const firstStr = `{${Array.from(first).join(',') || ' '}}`;
+        const followStr = `{${Array.from(follow).join(',') || ' '}}`;
+        stateParts.push(`${nt}:F=${firstStr},Fo=${followStr}`);
+      }
+      const state = stateParts.join(' | ');
+
+      lines.push(`${stepNum}${action}${state}`);
+    }
+
+    const text = lines.join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('已复制到剪贴板', 'success');
+    }).catch(() => {
+      showToast('复制失败', 'error');
+    });
+  };
+
   return (
     <div className="h-full flex flex-col bg-slate-900">
       <div className="px-4 py-3 border-b border-slate-700 bg-slate-800">
@@ -108,6 +160,14 @@ export function FirstFollowPanel() {
             title="重新计算"
           >
             <RefreshCw className="w-4 h-4 text-slate-300" />
+          </button>
+          <button
+            onClick={handleExport}
+            disabled={firstFollowSteps.length === 0}
+            className="p-2 hover:bg-slate-700 rounded transition-colors disabled:opacity-40"
+            title="导出步骤到剪贴板"
+          >
+            <Download className="w-4 h-4 text-slate-300" />
           </button>
           <button
             onClick={() => setFFStep(0)}

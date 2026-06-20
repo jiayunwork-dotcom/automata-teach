@@ -1,5 +1,11 @@
 import { create } from 'zustand';
 
+export interface Toast {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info';
+}
+
 interface UIState {
   rightPanelOpen: boolean;
   rightPanelTab: 'transitionTable' | 'executionTree' | 'info';
@@ -12,6 +18,7 @@ interface UIState {
   showLevelsDialog: boolean;
   showOperationsDialog: boolean;
   showBatchTestDialog: boolean;
+  toasts: Toast[];
 
   toggleRightPanel: () => void;
   setRightPanelTab: (tab: 'transitionTable' | 'executionTree' | 'info') => void;
@@ -27,6 +34,9 @@ interface UIState {
   setShowOperationsDialog: (show: boolean) => void;
   setShowBatchTestDialog: (show: boolean) => void;
 
+  showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  hideToast: (id: string) => void;
+
   activeTool: 'select' | 'addState' | 'addTransition' | 'delete';
   setActiveTool: (tool: 'select' | 'addState' | 'addTransition' | 'delete') => void;
 
@@ -39,7 +49,9 @@ interface UIState {
   setThompsonActive: (active: boolean) => void;
 }
 
-export const useUIStore = create<UIState>((set) => ({
+let toastIdCounter = 0;
+
+export const useUIStore = create<UIState>((set, get) => ({
   rightPanelOpen: true,
   rightPanelTab: 'transitionTable',
   leftPanelOpen: true,
@@ -51,6 +63,7 @@ export const useUIStore = create<UIState>((set) => ({
   showLevelsDialog: false,
   showOperationsDialog: false,
   showBatchTestDialog: false,
+  toasts: [],
 
   toggleRightPanel: () =>
     set((state) => ({ rightPanelOpen: !state.rightPanelOpen })),
@@ -68,6 +81,21 @@ export const useUIStore = create<UIState>((set) => ({
   setShowLevelsDialog: (show) => set({ showLevelsDialog: show }),
   setShowOperationsDialog: (show) => set({ showOperationsDialog: show }),
   setShowBatchTestDialog: (show) => set({ showBatchTestDialog: show }),
+
+  showToast: (message, type = 'info') => {
+    const id = `toast_${++toastIdCounter}`;
+    set((state) => ({
+      toasts: [...state.toasts, { id, message, type }],
+    }));
+    setTimeout(() => {
+      get().hideToast(id);
+    }, 3000);
+  },
+  hideToast: (id) => {
+    set((state) => ({
+      toasts: state.toasts.filter((t) => t.id !== id),
+    }));
+  },
 
   activeTool: 'select',
   setActiveTool: (tool) => set({ activeTool: tool }),

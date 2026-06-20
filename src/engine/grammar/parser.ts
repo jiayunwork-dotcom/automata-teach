@@ -18,12 +18,15 @@ export function resetProductionIdCounter(): void {
 }
 
 function isNonTerminal(symbol: string): boolean {
-  return /^[A-Z][A-Za-z0-9_]*$/.test(symbol);
+  return /^[A-Z][A-Za-z0-9_]*'*$/.test(symbol);
 }
 
 function isTerminal(symbol: string): boolean {
   if (symbol === EPSILON || symbol === EPSILON_INPUT) return true;
-  return /^[a-z0-9+\-*/^(),.;:!@#%&=<>?[\]{}|~]$/.test(symbol);
+  if (symbol.length === 1) {
+    return /^[a-z0-9+\-*/^(),.;:!@#%&=<>?[\]{}|~]$/.test(symbol);
+  }
+  return symbol.length > 1;
 }
 
 function parseRightSide(
@@ -130,7 +133,7 @@ export function parseGrammar(input: string, startSymbolOverride?: string): Parse
       return;
     }
 
-    const arrowMatch = trimmed.match(/^([A-Z][A-Za-z0-9_]*)\s*(?:->|→|::=)\s*(.*)$/);
+    const arrowMatch = trimmed.match(/^([A-Z][A-Za-z0-9_]*'*)\s*(?:->|→|::=)\s*(.*)$/);
     if (!arrowMatch) {
       errors.push({
         line: lineNum,
@@ -224,7 +227,7 @@ function detectLeftRecursion(productions: Production[], nonTerminals: string[]):
       continue;
     }
 
-    if (hasIndirectRecursion(nt, productions, nonTerminals)) {
+    if (hasIndirectRecursion(nt, productions)) {
       recursive.push(nt);
     }
   }
@@ -234,8 +237,7 @@ function detectLeftRecursion(productions: Production[], nonTerminals: string[]):
 
 function hasIndirectRecursion(
   startNt: string,
-  productions: Production[],
-  _nonTerminals: string[]
+  productions: Production[]
 ): boolean {
   const visited = new Set<string>();
   const stack = [startNt];
@@ -283,11 +285,19 @@ export function isRegularGrammar(grammar: ParsedGrammar): boolean {
   return true;
 }
 
+function formatSymbol(s: GrammarSymbol): string {
+  if (s.value === EPSILON) return EPSILON;
+  if (s.isTerminal && s.value.length > 1) {
+    return `'${s.value}'`;
+  }
+  return s.value;
+}
+
 export function productionToString(p: Production): string {
-  const rightStr = p.right.map((s) => s.value).join('');
+  const rightStr = p.right.map(formatSymbol).join('');
   return `${p.left}->${rightStr || EPSILON}`;
 }
 
 export function symbolsToString(symbols: GrammarSymbol[]): string {
-  return symbols.map((s) => s.value).join('');
+  return symbols.map(formatSymbol).join('');
 }

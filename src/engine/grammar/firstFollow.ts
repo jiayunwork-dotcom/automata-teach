@@ -112,7 +112,7 @@ export function buildFirstFollowSteps(grammar: ParsedGrammar): FirstFollowStep[]
   });
 
   let changed = true;
-  let maxIterations = 100;
+  const maxIterations = 100;
   let iteration = 0;
 
   while (changed && iteration < maxIterations) {
