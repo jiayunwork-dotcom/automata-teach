@@ -17,7 +17,8 @@ export function RegexDialog() {
     try {
       const auto = thompsonToAutomaton(regex.trim());
       if (auto) {
-        setAutomaton(auto);
+        const laidOut = layoutThompsonNFA(auto);
+        setAutomaton(laidOut);
         setShowRegexDialog(false);
       } else {
         setError('转换失败');

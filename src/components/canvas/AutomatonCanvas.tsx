@@ -26,6 +26,8 @@ export function AutomatonCanvas() {
   const hoveredTransitionId = useEditorStore((s) => s.hoveredTransitionId);
   const selectedStateId = useEditorStore((s) => s.selectedStateId);
   const selectedTransitionId = useEditorStore((s) => s.selectedTransitionId);
+  const highlightedStateIds = useEditorStore((s) => s.highlightedStateIds);
+  const highlightColor = useEditorStore((s) => s.highlightColor);
   const zoomAt = useEditorStore((s) => s.zoomAt);
   const setOffset = useEditorStore((s) => s.setOffset);
   const screenToWorld = useEditorStore((s) => s.screenToWorld);
@@ -98,6 +100,8 @@ export function AutomatonCanvas() {
         executionMode: mode,
         animationProgress,
         drawingTransition,
+        highlightStates: highlightedStateIds,
+        highlightColor,
       });
 
       animationFrameRef.current = requestAnimationFrame(render);
@@ -118,6 +122,8 @@ export function AutomatonCanvas() {
     hoveredTransitionId,
     selectedStateId,
     selectedTransitionId,
+    highlightedStateIds,
+    highlightColor,
     flashingTransitionIds,
     mode,
     animationProgress,

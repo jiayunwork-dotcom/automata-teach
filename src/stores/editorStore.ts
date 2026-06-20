@@ -10,6 +10,8 @@ interface EditorState {
   hoveredTransitionId: string | null;
   selectedStateId: string | null;
   selectedTransitionId: string | null;
+  highlightedStateIds: string[];
+  highlightColor: string;
 
   setEditorMode: (mode: EditorMode) => void;
   setView: (view: ViewTransform) => void;
@@ -24,6 +26,7 @@ interface EditorState {
   setHoveredTransition: (id: string | null) => void;
   setSelectedState: (id: string | null) => void;
   setSelectedTransition: (id: string | null) => void;
+  setHighlightedStates: (ids: string[], color?: string) => void;
 
   screenToWorld: (sx: number, sy: number, canvasWidth: number, canvasHeight: number) => { x: number; y: number };
 }
@@ -37,6 +40,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   hoveredTransitionId: null,
   selectedStateId: null,
   selectedTransitionId: null,
+  highlightedStateIds: [],
+  highlightColor: '#06b6d4',
 
   setEditorMode: (mode) => set({ editorMode: mode }),
 
@@ -79,6 +84,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setHoveredTransition: (id) => set({ hoveredTransitionId: id }),
   setSelectedState: (id) => set({ selectedStateId: id, selectedTransitionId: id ? null : null }),
   setSelectedTransition: (id) => set({ selectedTransitionId: id, selectedStateId: id ? null : null }),
+  setHighlightedStates: (ids, color) =>
+    set({ highlightedStateIds: ids, highlightColor: color || '#06b6d4' }),
 
   screenToWorld: (sx, sy, canvasWidth, canvasHeight) => {
     const { view } = get();

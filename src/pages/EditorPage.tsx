@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { TopToolbar } from '../components/toolbar/TopToolbar';
 import { AutomatonCanvas } from '../components/canvas/AutomatonCanvas';
 import { RightPanel } from '../components/panels/RightPanel';
+import { ConversionPanel } from '../components/panels/ConversionPanel';
 import { ContextMenu } from '../components/common/ContextMenu';
 import { ImportExportDialog } from '../components/dialogs/ImportExportDialog';
 import { RegexDialog } from '../components/dialogs/RegexDialog';
@@ -69,6 +70,7 @@ export function EditorPage() {
       <div className="flex-1 flex relative overflow-hidden">
         <AutomatonCanvas />
         <RightPanel />
+        <ConversionPanel />
       </div>
 
       <ContextMenu />

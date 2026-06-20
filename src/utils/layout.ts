@@ -6,6 +6,7 @@ interface LayoutOptions {
   verticalSpacing?: number;
   startX?: number;
   startY?: number;
+  useEpsilonForLayout?: boolean;
 }
 
 export function layoutAutomaton(
@@ -15,8 +16,7 @@ export function layoutAutomaton(
   const {
     horizontalSpacing = 150,
     verticalSpacing = 100,
-    startX = 0,
-    startY = 0,
+    useEpsilonForLayout = false,
   } = options;
 
   const positions = new Map<string, { x: number; y: number }>();
@@ -25,54 +25,71 @@ export function layoutAutomaton(
   const startId = getStartStateId(automaton);
   if (!startId) {
     automaton.states.forEach((s, i) => {
-      positions.set(s.id, { x: startX + i * horizontalSpacing, y: startY });
+      positions.set(s.id, { x: i * horizontalSpacing, y: 0 });
     });
     return positions;
   }
 
+  const depth = new Map<string, number>();
   const visited = new Set<string>();
-  const queue: { id: string; level: number }[] = [{ id: startId, level: 0 }];
+  const deque: { id: string; d: number }[] = [{ id: startId, d: 0 }];
 
-  while (queue.length > 0) {
-    const { id, level } = queue.shift()!;
+  while (deque.length > 0) {
+    const { id, d } = deque.shift()!;
     if (visited.has(id)) continue;
     visited.add(id);
-
-    if (!levels.has(level)) {
-      levels.set(level, []);
-    }
-    levels.get(level)!.push(id);
+    depth.set(id, d);
 
     for (const t of automaton.transitions) {
       if (t.from === id && !visited.has(t.to)) {
-        queue.push({ id: t.to, level: level + 1 });
+        const allEpsilon = t.symbols.every((s) => s === 'ε' || s === 'e');
+
+        if (useEpsilonForLayout || !allEpsilon) {
+          deque.push({ id: t.to, d: d + 1 });
+        } else {
+          deque.unshift({ id: t.to, d });
+        }
       }
     }
   }
 
   for (const s of automaton.states) {
     if (!visited.has(s.id)) {
-      const maxLevel = levels.size > 0 ? Math.max(...levels.keys()) : -1;
-      const nextLevel = maxLevel + 1;
-      if (!levels.has(nextLevel)) {
-        levels.set(nextLevel, []);
-      }
-      levels.get(nextLevel)!.push(s.id);
+      const maxDepth = depth.size > 0 ? Math.max(...depth.values()) : -1;
+      depth.set(s.id, maxDepth + 1);
     }
   }
 
+  for (const [id, d] of depth) {
+    if (!levels.has(d)) {
+      levels.set(d, []);
+    }
+    levels.get(d)!.push(id);
+  }
+
   const sortedLevels = Array.from(levels.entries()).sort((a, b) => a[0] - b[0]);
+  const numLevels = sortedLevels.length;
+  const totalWidth = (numLevels - 1) * horizontalSpacing;
+  const offsetX = (options.startX || 0) - totalWidth / 2;
+  const offsetY = options.startY || 0;
+
+  let maxStatesInLevel = 0;
+  for (const [, stateIds] of sortedLevels) {
+    maxStatesInLevel = Math.max(maxStatesInLevel, stateIds.length);
+  }
+  const totalHeight = (maxStatesInLevel - 1) * verticalSpacing;
+  const baseY = offsetY - totalHeight / 2;
 
   for (const [level, stateIds] of sortedLevels) {
     const count = stateIds.length;
-    const totalHeight = (count - 1) * verticalSpacing;
-    const startYPos = startY - totalHeight / 2;
+    const levelHeight = (count - 1) * verticalSpacing;
+    const levelStartY = baseY + (totalHeight - levelHeight) / 2;
 
     stateIds.sort();
     stateIds.forEach((id, i) => {
       positions.set(id, {
-        x: startX + level * horizontalSpacing,
-        y: startYPos + i * verticalSpacing,
+        x: offsetX + level * horizontalSpacing,
+        y: levelStartY + i * verticalSpacing,
       });
     });
   }
@@ -91,22 +108,16 @@ export function applyLayout(automaton: Automaton, options?: LayoutOptions): Auto
 
 export function layoutThompsonNFA(automaton: Automaton): Automaton {
   return applyLayout(automaton, {
-    horizontalSpacing: 120,
-    verticalSpacing: 90,
-    startX: -200,
-    startY: 0,
+    horizontalSpacing: 140,
+    verticalSpacing: 100,
   });
 }
 
 export function layoutSubsetDFA(
-  automaton: Automaton,
-  startX: number = 100,
-  startY: number = 0
+  automaton: Automaton
 ): Automaton {
   return applyLayout(automaton, {
     horizontalSpacing: 180,
     verticalSpacing: 120,
-    startX,
-    startY,
   });
 }
