@@ -3,6 +3,7 @@ import { X, Sparkles } from 'lucide-react';
 import { useUIStore } from '../../stores/uiStore';
 import { useAutomatonStore } from '../../stores/automatonStore';
 import { thompsonToAutomaton, buildThompsonSteps } from '../../engine/regexp';
+import { layoutThompsonNFA } from '../../utils/layout';
 
 export function RegexDialog() {
   const showRegexDialog = useUIStore((s) => s.showRegexDialog);
