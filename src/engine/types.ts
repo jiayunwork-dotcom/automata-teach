@@ -28,6 +28,17 @@ export interface ExecutionStep {
   transitionIds: string[];
   isDead: boolean;
   epsilonClosure?: string[];
+  branches?: ExecutionBranch[];
+}
+
+export interface ExecutionBranch {
+  id: string;
+  stateIds: string[];
+  consumedChar: string | null;
+  isDead: boolean;
+  isAccept: boolean;
+  parentId: string | null;
+  depth: number;
 }
 
 export type EditorMode = 'edit' | 'test' | 'convert';

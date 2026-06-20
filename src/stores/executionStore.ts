@@ -12,6 +12,8 @@ interface ExecutionState {
   result: 'accept' | 'reject' | null;
   flashingTransitionIds: string[];
   animationProgress: number;
+  deadStateChar: string | null;
+  deadStateSourceIds: string[];
 
   setInputString: (s: string) => void;
   setSpeed: (speed: PlaybackSpeed) => void;
@@ -31,6 +33,7 @@ interface ExecutionState {
   setFlashingTransitions: (ids: string[]) => void;
 
   setFinished: (result: 'accept' | 'reject') => void;
+  setDeadStateInfo: (char: string | null, sourceIds: string[]) => void;
 }
 
 export const useExecutionStore = create<ExecutionState>((set, get) => ({
@@ -44,6 +47,8 @@ export const useExecutionStore = create<ExecutionState>((set, get) => ({
   result: null,
   flashingTransitionIds: [],
   animationProgress: 0,
+  deadStateChar: null,
+  deadStateSourceIds: [],
 
   setInputString: (s) => set({ inputString: s }),
   setSpeed: (speed) => set({ speed }),
@@ -58,6 +63,8 @@ export const useExecutionStore = create<ExecutionState>((set, get) => ({
       result: null,
       animationProgress: 0,
       flashingTransitionIds: [],
+      deadStateChar: null,
+      deadStateSourceIds: [],
     });
   },
 
@@ -73,6 +80,8 @@ export const useExecutionStore = create<ExecutionState>((set, get) => ({
       steps: [],
       flashingTransitionIds: [],
       animationProgress: 0,
+      deadStateChar: null,
+      deadStateSourceIds: [],
     });
   },
 
@@ -84,35 +93,41 @@ export const useExecutionStore = create<ExecutionState>((set, get) => ({
       result: null,
       flashingTransitionIds: [],
       animationProgress: 0,
+      deadStateChar: null,
+      deadStateSourceIds: [],
     });
   },
 
   goToStep: (index) => {
     const { steps } = get();
     const clamped = Math.max(0, Math.min(steps.length - 1, index));
+    const step = steps[clamped];
     set({
       currentStepIndex: clamped,
       animationProgress: 0,
-      flashingTransitionIds: steps[clamped]?.transitionIds || [],
+      flashingTransitionIds: step?.transitionIds || [],
+      deadStateChar: step?.isDead && step.consumedChar ? step.consumedChar : null,
+      deadStateSourceIds: step?.isDead && step.consumedChar
+        ? (steps[clamped - 1]?.activeStates || [])
+        : [],
+      isFinished: false,
+      result: null,
     });
   },
 
   nextStep: () => {
-    const { steps, currentStepIndex, isFinished } = get();
+    const { steps, currentStepIndex } = get();
     if (currentStepIndex < steps.length - 1) {
       const nextIdx = currentStepIndex + 1;
+      const nextStepItem = steps[nextIdx];
+      const isDead = nextStepItem.isDead && nextStepItem.consumedChar !== null;
       set({
         currentStepIndex: nextIdx,
         animationProgress: 0,
-        flashingTransitionIds: steps[nextIdx].transitionIds,
+        flashingTransitionIds: nextStepItem.transitionIds,
+        deadStateChar: isDead ? nextStepItem.consumedChar : null,
+        deadStateSourceIds: isDead ? (steps[currentStepIndex]?.activeStates || []) : [],
       });
-      if (nextIdx === steps.length - 1) {
-        const lastStep = steps[nextIdx];
-        const hasAccept = lastStep.activeStates.some((sid) => {
-          // This is checked later, we set result from outside
-          return false;
-        });
-      }
     }
   },
 
@@ -126,6 +141,8 @@ export const useExecutionStore = create<ExecutionState>((set, get) => ({
         flashingTransitionIds: steps[prevIdx].transitionIds,
         isFinished: false,
         result: null,
+        deadStateChar: null,
+        deadStateSourceIds: [],
       });
     }
   },
@@ -135,5 +152,8 @@ export const useExecutionStore = create<ExecutionState>((set, get) => ({
 
   setFinished: (result) => {
     set({ isFinished: true, result, isPlaying: false });
+  },
+  setDeadStateInfo: (char, sourceIds) => {
+    set({ deadStateChar: char, deadStateSourceIds: sourceIds });
   },
 }));

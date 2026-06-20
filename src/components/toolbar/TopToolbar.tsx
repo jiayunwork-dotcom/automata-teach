@@ -5,7 +5,6 @@ import {
   SkipForward,
   StepBack,
   StepForward,
-  Settings,
   Download,
   Upload,
   Save,
@@ -18,6 +17,7 @@ import {
   ArrowRightLeft,
   Trash2,
   Gauge,
+  ListChecks,
 } from 'lucide-react';
 import { useEditorStore } from '../../stores/editorStore';
 import { useExecutionStore } from '../../stores/executionStore';
@@ -60,6 +60,7 @@ export function TopToolbar() {
   const setShowRegexDialog = useUIStore((s) => s.setShowRegexDialog);
   const setShowLevelsDialog = useUIStore((s) => s.setShowLevelsDialog);
   const setShowOperationsDialog = useUIStore((s) => s.setShowOperationsDialog);
+  const setShowBatchTestDialog = useUIStore((s) => s.setShowBatchTestDialog);
   const setSubsetConstructionActive = useUIStore(
     (s) => s.setSubsetConstructionActive
   );
@@ -240,6 +241,14 @@ export function TopToolbar() {
               ))}
             </select>
           </div>
+
+          <button
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 rounded text-sm font-medium transition-colors"
+            onClick={() => setShowBatchTestDialog(true)}
+          >
+            <ListChecks className="w-4 h-4" />
+            批量测试
+          </button>
 
           {result && (
             <div

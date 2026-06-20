@@ -10,6 +10,7 @@ interface UIState {
   showRegexDialog: boolean;
   showLevelsDialog: boolean;
   showOperationsDialog: boolean;
+  showBatchTestDialog: boolean;
 
   toggleRightPanel: () => void;
   setRightPanelTab: (tab: 'transitionTable' | 'executionTree' | 'info') => void;
@@ -21,6 +22,7 @@ interface UIState {
   setShowRegexDialog: (show: boolean) => void;
   setShowLevelsDialog: (show: boolean) => void;
   setShowOperationsDialog: (show: boolean) => void;
+  setShowBatchTestDialog: (show: boolean) => void;
 
   activeTool: 'select' | 'addState' | 'addTransition' | 'delete';
   setActiveTool: (tool: 'select' | 'addState' | 'addTransition' | 'delete') => void;
@@ -44,6 +46,7 @@ export const useUIStore = create<UIState>((set) => ({
   showRegexDialog: false,
   showLevelsDialog: false,
   showOperationsDialog: false,
+  showBatchTestDialog: false,
 
   toggleRightPanel: () =>
     set((state) => ({ rightPanelOpen: !state.rightPanelOpen })),
@@ -57,6 +60,7 @@ export const useUIStore = create<UIState>((set) => ({
   setShowRegexDialog: (show) => set({ showRegexDialog: show }),
   setShowLevelsDialog: (show) => set({ showLevelsDialog: show }),
   setShowOperationsDialog: (show) => set({ showOperationsDialog: show }),
+  setShowBatchTestDialog: (show) => set({ showBatchTestDialog: show }),
 
   activeTool: 'select',
   setActiveTool: (tool) => set({ activeTool: tool }),
